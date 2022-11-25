@@ -19,8 +19,12 @@ router.post('/', asyncHandler(async (req, res, next) => {
         return next();
     }
     if (req.query.action === 'register') {
-        await User.create(req.body);
-        res.status(201).json({ code: 201, msg: 'Successful created new user.' });
+        if (/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{5,}$/.test(req.body.password)) {
+            await User.create(req.body);
+        } else {
+            res.status(401).json({ code: 401, msg: 'Authentication failed. Password too weak' });
+        }
+        res.status(201).json({ code: 201, msg: 'Successfully created new user.' });
     } else {
         const user = await User.findByUserName(req.body.username);
         if (!user) return res.status(401).json({ code: 401, msg: 'Authentication failed. User not found.' });
@@ -55,7 +59,11 @@ router.post('/:userName/favourites', asyncHandler(async (req, res) => {
     const userName = req.params.userName;
     const movie = await movieModel.findByMovieDBId(newFavourite);
     const user = await User.findByUserName(userName);
-    await user.favourites.push(movie._id);
+    if (!(await user.favourites.includes(movie._id))) {
+        await user.favourites.push(movie._id);
+    } else {
+        res.status(401).json({ code: 401, msg: 'Cannot add movie to favourites. Movie is already added to Favourites.' });
+    }
     await user.save();
     res.status(201).json(user);
 }));
